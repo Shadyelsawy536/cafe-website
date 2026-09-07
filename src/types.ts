@@ -3,6 +3,8 @@ export type Restaurant = {
   name: string;
   slug: string;
   description: string | null;
+  logo_url: string | null;
+  cover_image_url: string | null;
   phone: string | null;
   email: string | null;
   address: string | null;
