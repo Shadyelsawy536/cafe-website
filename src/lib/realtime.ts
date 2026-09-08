@@ -6,32 +6,21 @@ export type OrderRealtimeEvent = {
   restaurant_id: string;
   customer_id: string | null;
   event: 'insert' | 'update' | 'delete';
-  status: string | null;
+  status: string;
   updated_at: string | null;
 };
 
-/**
- * High-scale order updates. Broadcast is preferred over Postgres Changes so
- * database authorization work is not repeated for every subscriber.
- */
-export function subscribeToRestaurantOrders(
-  restaurantId: string,
-  onEvent: (event: OrderRealtimeEvent) => void,
-): RealtimeChannel {
-  return supabase
-    .channel(`restaurant:${restaurantId}:orders`, { config: { private: true } })
+/** High-scale order updates using private Broadcast channels. */
+export function subscribeToRestaurantOrders(restaurantId: string, onEvent: (event: OrderRealtimeEvent) => void): RealtimeChannel {
+  return supabase.channel(`restaurant:${restaurantId}:orders`, { config: { private: true } })
     .on('broadcast', { event: 'order_insert' }, ({ payload }) => onEvent(payload as OrderRealtimeEvent))
     .on('broadcast', { event: 'order_update' }, ({ payload }) => onEvent(payload as OrderRealtimeEvent))
     .on('broadcast', { event: 'order_delete' }, ({ payload }) => onEvent(payload as OrderRealtimeEvent))
     .subscribe();
 }
 
-export function subscribeToCustomerOrders(
-  customerId: string,
-  onEvent: (event: OrderRealtimeEvent) => void,
-): RealtimeChannel {
-  return supabase
-    .channel(`customer:${customerId}:orders`, { config: { private: true } })
+export function subscribeToCustomerOrders(customerId: string, onEvent: (event: OrderRealtimeEvent) => void): RealtimeChannel {
+  return supabase.channel(`customer:${customerId}:orders`, { config: { private: true } })
     .on('broadcast', { event: 'order_insert' }, ({ payload }) => onEvent(payload as OrderRealtimeEvent))
     .on('broadcast', { event: 'order_update' }, ({ payload }) => onEvent(payload as OrderRealtimeEvent))
     .on('broadcast', { event: 'order_delete' }, ({ payload }) => onEvent(payload as OrderRealtimeEvent))
