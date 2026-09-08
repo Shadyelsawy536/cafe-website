@@ -16,10 +16,17 @@ function statusIndex(status: string) {
   return steps.findIndex(step => step.key === status);
 }
 
+type TrackingOrder = {
+  id: string;
+  status: string;
+  total: number;
+  created_at: string;
+};
+
 export default function OrderTracking() {
   const params = new URLSearchParams(window.location.search);
   const orderId = params.get('order');
-  const [order, setOrder] = useState<{ id: string; status: string; total: number; created_at: string } | null>(null);
+  const [order, setOrder] = useState<TrackingOrder | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -33,10 +40,10 @@ export default function OrderTracking() {
       if (!customer) { setError('Customer profile not found.'); return; }
       const { data, error: orderError } = await supabase.from('orders').select('id,status,total,created_at').eq('id', orderId).eq('customer_id', customer.id).maybeSingle();
       if (orderError || !data) { setError(orderError?.message || 'Order not found.'); return; }
-      if (active) setOrder(data);
+      if (active) setOrder({ ...data, status: data.status ?? 'pending', total: Number(data.total) });
       channel = subscribeToCustomerOrders(customer.id, (event: OrderRealtimeEvent) => {
         if (event.order_id === orderId && active) {
-          setOrder(current => current ? { ...current, status: event.status ?? current.status, } : current);
+          setOrder(current => current ? { ...current, status: event.status ?? current.status } : current);
         }
       });
     })();
@@ -53,9 +60,9 @@ export default function OrderTracking() {
       <span className="eyebrow">Live order tracking</span>
       <h1>Order #{order.id.slice(0, 8).toUpperCase()}</h1>
       <p>We’ll update this screen automatically when the restaurant changes your order.</p>
-      <div className={`tracking-status ${failed ? 'failed' : ''}`}>{failed ? `Order ${order.status}` : steps[current]?.label}</div>
+      <div className={`tracking-status ${failed ? 'failed' : ''}`}>{failed ? `Order ${order.status}` : steps[current]?.label || 'Order received'}</div>
       {!failed && <div className="tracking-steps">{steps.map((step, index) => <div className={`tracking-step ${index <= current ? 'done' : ''}`} key={step.key}><span>{index <= current ? '✓' : index + 1}</span><b>{step.label}</b></div>)}</div>}
-      <div className="tracking-total"><span>Total</span><strong>{Number(order.total).toFixed(2)}</strong></div>
+      <div className="tracking-total"><span>Total</span><strong>{order.total.toFixed(2)}</strong></div>
       <a className="checkout" href={`${window.location.pathname}?restaurant=${params.get('restaurant') || 'cafe'}`}>Back to menu</a>
     </div>
   </main></div>;
