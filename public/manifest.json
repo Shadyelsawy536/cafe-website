@@ -1,0 +1,9 @@
+{
+  "name": "Restaurant",
+  "short_name": "Restaurant",
+  "start_url": "./?restaurant=cafe",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#111111"
+}
