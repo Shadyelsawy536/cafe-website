@@ -8,8 +8,9 @@ export type PaymentProvider = {
 };
 
 export async function loadPaymentProviders(_restaurantId: string): Promise<PaymentProvider[]> {
-  // Provider availability is public. Tenant credentials stay server-side in
-  // tenant_payment_accounts and are validated by the create-payment Edge Function.
+  // Cash is a checkout method, not a payment provider, so it is represented
+  // locally. Online card payments use the active Paymob provider; credentials
+  // remain server-side and are validated by the create-payment Edge Function.
   const { data, error } = await supabase
     .from('payment_providers')
     .select('id,name,slug,is_active')
@@ -17,5 +18,21 @@ export async function loadPaymentProviders(_restaurantId: string): Promise<Payme
     .order('name');
 
   if (error) throw error;
-  return (data ?? []) as PaymentProvider[];
+
+  const providers = (data ?? []) as PaymentProvider[];
+  const onlineProviders = providers.map(provider =>
+    provider.slug === 'paymob'
+      ? { ...provider, name: 'Visa / Card' }
+      : provider,
+  );
+
+  return [
+    {
+      id: 'cash',
+      name: 'Cash',
+      slug: 'cash',
+      is_active: true,
+    },
+    ...onlineProviders,
+  ];
 };
