@@ -7,44 +7,33 @@ export type PaymentProvider = {
   is_active: boolean;
 };
 
-export async function loadPaymentProviders(restaurantId: string): Promise<PaymentProvider[]> {
-  // Cash is always available as a checkout method. Online providers are shown
-  // only when this restaurant has explicitly configured an active account.
-  const cash: PaymentProvider = {
-    id: 'cash',
-    name: 'Cash',
-    slug: 'cash',
-    is_active: true,
-  };
+export async function loadPaymentProviders(_restaurantId: string): Promise<PaymentProvider[]> {
+  // Cash is a checkout method, not a payment provider, so it is represented
+  // locally. Online providers must be served by a tenant-scoped public
+  // endpoint; querying tenant_payment_accounts directly here is not safe
+  // because customer checkout runs with the public anon key.
+  const { data, error } = await supabase
+    .from('payment_providers')
+    .select('id,name,slug,is_active')
+    .eq('is_active', true)
+    .order('name');
 
-  if (!restaurantId) return [cash];
+  if (error) throw error;
 
-  const { data: accounts, error: accountsError } = await supabase
-    .from('tenant_payment_accounts')
-    .select('provider_id, payment_providers(id, name, code, is_active)')
-    .eq('restaurant_id', restaurantId)
-    .eq('is_active', true);
+  const providers = (data ?? []) as PaymentProvider[];
+  const onlineProviders = providers.map(provider =>
+    provider.slug === 'paymob'
+      ? { ...provider, name: 'Visa / Card' }
+      : provider,
+  );
 
-  if (accountsError) {
-    // Do not fall back to listing every globally enabled provider: that can
-    // offer online payment for a restaurant that has not configured it.
-    throw accountsError;
-  }
-
-  const onlineProviders: PaymentProvider[] = (accounts ?? [])
-    .map((account: any) => {
-      const provider = Array.isArray(account.payment_providers)
-        ? account.payment_providers[0]
-        : account.payment_providers;
-      if (!provider || provider.is_active !== true) return null;
-      return {
-        id: provider.id,
-        name: provider.code === 'paymob' ? 'Visa / Card' : provider.name,
-        slug: provider.code,
-        is_active: true,
-      };
-    })
-    .filter((provider): provider is PaymentProvider => provider !== null);
-
-  return [cash, ...onlineProviders];
+  return [
+    {
+      id: 'cash',
+      name: 'Cash',
+      slug: 'cash',
+      is_active: true,
+    },
+    ...onlineProviders,
+  ];
 }
