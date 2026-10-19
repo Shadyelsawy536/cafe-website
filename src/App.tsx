@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { supabase } from './lib/supabase';
 import { getRestaurantSlug, loadRestaurant } from './lib/tenant';
-import { loadStore, type StoreData } from './lib/store';
+import { loadStore, subscribeToStoreCacheUpdates, type StoreData } from './lib/store';
 import { findDeliveryZone } from './lib/delivery';
 import { loadPaymentProviders } from './lib/payments';
 import { removeOrderRealtime, subscribeToCustomerOrders } from './lib/realtime';
@@ -26,6 +26,7 @@ export default function App() {
   const [store, setStore] = useState<StoreData | null>(null); const [error, setError] = useState<string | null>(null); const [loading, setLoading] = useState(true); const [activeCategory, setActiveCategory] = useState('all'); const [query, setQuery] = useState(''); const [cart, setCart] = useState<CartItem[]>([]); const [selected, setSelected] = useState<Product | null>(null); const [authOpen, setAuthOpen] = useState(false); const [checkoutOpen, setCheckoutOpen] = useState(false); const [customer, setCustomer] = useState<Customer | null>(null); const [notice, setNotice] = useState(''); const [trackingOrderId, setTrackingOrderId] = useState<string | null>(() => new URLSearchParams(window.location.search).get('order')); const [confirmationOrderId, setConfirmationOrderId] = useState<string | null>(null); const [confirmationTotal, setConfirmationTotal] = useState(0); const [loadAttempt, setLoadAttempt] = useState(0);
 
   useEffect(() => { let cancelled = false; setLoading(true); setError(null); (async () => { try { const slug = getRestaurantSlug(); if (!slug) throw new Error('No restaurant selected.'); const restaurant = await loadRestaurant(slug); const data = await loadStore(restaurant); if (!cancelled) setStore(data); } catch (e) { if (!cancelled) setError(e instanceof Error ? e.message : 'Unable to load restaurant.'); } finally { if (!cancelled) setLoading(false); } })(); return () => { cancelled = true; }; }, [loadAttempt]);
+  useEffect(() => subscribeToStoreCacheUpdates(fresh => { setStore(current => current?.restaurant.id === fresh.restaurant.id ? fresh : current); }), []);
   useEffect(() => { if (!store) return; let active = true; const loadCustomer = async () => { const { data: { user } } = await supabase.auth.getUser(); if (!user || !active) return; const { data } = await supabase.from('customers').select('id,user_id,full_name,phone').eq('user_id', user.id).eq('restaurant_id', store.restaurant.id).maybeSingle(); if (active) setCustomer(data as Customer | null); }; void loadCustomer(); const { data } = supabase.auth.onAuthStateChange(() => { void loadCustomer(); }); return () => { active = false; data.subscription.unsubscribe(); }; }, [store]);
   useEffect(() => { if (!customer) return; const channel = subscribeToCustomerOrders(customer.id, event => { if (event.order_id === trackingOrderId && event.status) setNotice(`Order updated: ${statusLabel[event.status] ?? event.status}`); }); return () => { void removeOrderRealtime(channel); }; }, [customer, trackingOrderId]);
 
