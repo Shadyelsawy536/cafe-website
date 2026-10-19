@@ -16,7 +16,101 @@ export type StoreData = {
   businessHours: BusinessHour[];
 };
 
+const STORE_CACHE_VERSION = 1;
+const STORE_CACHE_FRESH_MS = 30_000;
+const STORE_CACHE_MAX_STALE_MS = 5 * 60_000;
+const STORE_CACHE_EVENT = 'cafe-store-cache-updated';
+
+type StoreCacheEntry = { version: number; savedAt: number; data: StoreData };
+const storeLoads = new Map<string, Promise<StoreData>>();
+
+function cacheKey(restaurantId: string): string {
+  return `cafe-store:v${STORE_CACHE_VERSION}:${restaurantId}`;
+}
+
+function readStoreCache(restaurantId: string): StoreCacheEntry | null {
+  try {
+    const raw = window.localStorage.getItem(cacheKey(restaurantId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as StoreCacheEntry;
+    if (parsed.version !== STORE_CACHE_VERSION || !parsed.savedAt || parsed.data?.restaurant?.id !== restaurantId) {
+      window.localStorage.removeItem(cacheKey(restaurantId));
+      return null;
+    }
+    return parsed;
+  } catch {
+    // Storage may be disabled or full. The network path remains available.
+    return null;
+  }
+}
+
+function writeStoreCache(data: StoreData): void {
+  try {
+    const entry: StoreCacheEntry = { version: STORE_CACHE_VERSION, savedAt: Date.now(), data };
+    window.localStorage.setItem(cacheKey(data.restaurant.id), JSON.stringify(entry));
+  } catch {
+    // Caching is an optimization; quota/privacy errors must never block ordering.
+  }
+}
+
+function fetchStore(restaurant: Restaurant): Promise<StoreData> {
+  const existing = storeLoads.get(restaurant.id);
+  if (existing) return existing;
+  const request = fetchStoreFromSupabase(restaurant).finally(() => {
+    if (storeLoads.get(restaurant.id) === request) storeLoads.delete(restaurant.id);
+  });
+  storeLoads.set(restaurant.id, request);
+  return request;
+}
+
+function publishStoreUpdate(data: StoreData): void {
+  try {
+    window.dispatchEvent(new CustomEvent<StoreData>(STORE_CACHE_EVENT, { detail: data }));
+  } catch {
+    // Events are only used to refresh the current tab's UI.
+  }
+}
+
+/**
+ * Uses a tenant-scoped local cache for fast repeat visits.
+ * Cached data contains public menu/configuration only, never customer/order/payment data.
+ * Recently stale data may render immediately while a fresh copy is fetched in the background.
+ */
 export async function loadStore(restaurant: Restaurant): Promise<StoreData> {
+  if (typeof window === 'undefined') return fetchStore(restaurant);
+  const cached = readStoreCache(restaurant.id);
+  const age = cached ? Date.now() - cached.savedAt : Number.POSITIVE_INFINITY;
+
+  if (cached && age <= STORE_CACHE_FRESH_MS) {
+    return cached.data;
+  }
+
+  if (cached && age <= STORE_CACHE_MAX_STALE_MS) {
+    void fetchStore(restaurant).then(fresh => {
+      writeStoreCache(fresh);
+      publishStoreUpdate(fresh);
+    }).catch(() => {
+      // Keep showing the last known menu; a later visit retries the refresh.
+    });
+    return cached.data;
+  }
+
+  const fresh = await fetchStore(restaurant);
+  writeStoreCache(fresh);
+  return fresh;
+}
+
+export function subscribeToStoreCacheUpdates(listener: (data: StoreData) => void): () => void {
+  if (typeof window === 'undefined') return () => undefined;
+  const handler = (event: Event) => {
+    const data = (event as CustomEvent<StoreData>).detail;
+    if (data?.restaurant?.id) listener(data);
+  };
+  window.addEventListener(STORE_CACHE_EVENT, handler);
+  return () => window.removeEventListener(STORE_CACHE_EVENT, handler);
+}
+
+async function fetchStoreFromSupabase(restaurant: Restaurant): Promise<StoreData> {
   const id = restaurant.id;
   const [branding, webSettings, settings, categories, products, modifierGroups, modifiers, productModifierGroups, locations, socialLinks, businessHours] = await Promise.all([
     supabase.from('restaurant_branding').select('customer_primary_color,customer_secondary_color,customer_background_color,customer_logo_url,customer_cover_url,font_family').eq('restaurant_id', id).maybeSingle(),
