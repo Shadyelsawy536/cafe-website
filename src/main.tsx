@@ -108,12 +108,10 @@ void (async () => {
   const restaurant = await loadRestaurant(slug).catch(() => null); if (!restaurant) return;
   const { data: webSettings } = await supabase.from('restaurant_web_settings').select('website_name,seo_title,seo_description,favicon_url,og_image_url,theme_color,pwa_enabled,pwa_short_name').eq('restaurant_id', restaurant.id).maybeSingle();
   const settings: WebSettingsRow = {
-    website_name: restaurant.name, seo_title: restaurant.name, seo_description: restaurant.description,
-    favicon_url: restaurant.logo_url, og_image_url: restaurant.cover_image_url, theme_color: '#111111',
-    pwa_enabled: true, pwa_short_name: restaurant.name,
-    ...(webSettings ?? {}),
-    // Website identity is sourced from Restaurant Info; only SEO text is dashboard-editable.
     website_name: restaurant.name,
+    seo_title: webSettings?.seo_title || restaurant.name,
+    seo_description: webSettings?.seo_description || restaurant.description,
+    // Logo and cover come from Restaurant Info; SEO text remains dashboard-editable.
     favicon_url: restaurant.logo_url,
     og_image_url: restaurant.cover_image_url,
     theme_color: '#111111',
