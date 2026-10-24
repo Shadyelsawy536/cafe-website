@@ -112,6 +112,13 @@ void (async () => {
     favicon_url: restaurant.logo_url, og_image_url: restaurant.cover_image_url, theme_color: '#111111',
     pwa_enabled: true, pwa_short_name: restaurant.name,
     ...(webSettings ?? {}),
+    // Website identity is sourced from Restaurant Info; only SEO text is dashboard-editable.
+    website_name: restaurant.name,
+    favicon_url: restaurant.logo_url,
+    og_image_url: restaurant.cover_image_url,
+    theme_color: '#111111',
+    pwa_enabled: true,
+    pwa_short_name: restaurant.name,
   };
   const currentUrl = window.location.href;
   applyWebsiteMetadata(restaurant.name, restaurant.description || '', currentUrl, settings);
