@@ -48,6 +48,7 @@ export function applyWebsiteMetadata(name: string, description: string, url: str
   upsertProperty('og:type', 'website');
   upsertProperty('og:url', url);
   if (image) upsertProperty('og:image', image);
+  // Let the browser infer the uploaded image MIME type for the shared restaurant logo.
   if (settings.favicon_url) upsertLink('icon', settings.favicon_url);
 }
 
