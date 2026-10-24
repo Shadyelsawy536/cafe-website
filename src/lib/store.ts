@@ -150,7 +150,7 @@ async function fetchStoreFromSupabase(restaurant: Restaurant): Promise<StoreData
 
   return {
     restaurant,
-    branding: { ...fallbackBranding, ...(branding.data ?? {}) },
+    branding: { ...fallbackBranding, ...(branding.data ?? {}), customer_logo_url: restaurant.logo_url, customer_cover_url: restaurant.cover_image_url },
     webSettings: { ...fallbackWebSettings, ...(webSettings.data ?? {}) },
     settings: { ...fallbackSettings, ...(settings.data ?? {}) },
     categories: (categories.data ?? []) as Category[],
