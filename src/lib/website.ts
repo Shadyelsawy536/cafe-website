@@ -29,6 +29,7 @@ function upsertLink(rel: string, href: string, type?: string) {
   }
   tag.href = href;
   if (type) tag.type = type;
+  else tag.removeAttribute('type');
 }
 
 export function applyWebsiteMetadata(name: string, description: string, url: string, settings: WebSettings) {
@@ -92,8 +93,8 @@ export function applyDynamicPwa(name: string, _url: string, settings: WebSetting
     background_color: '#ffffff',
     theme_color: settings.theme_color || '#111111',
     icons: settings.favicon_url ? [
-      { src: settings.favicon_url, sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
-      { src: settings.favicon_url, sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+      { src: settings.favicon_url, sizes: '192x192', purpose: 'any maskable' },
+      { src: settings.favicon_url, sizes: '512x512', purpose: 'any maskable' },
     ] : [],
   };
 
