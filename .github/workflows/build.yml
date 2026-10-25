@@ -20,3 +20,13 @@ jobs:
         run: npm install
       - name: Build
         run: npm run build
+      - name: Trigger cPanel site rebuild
+        if: github.event_name == 'push' && env.CPANEL_REPO_TOKEN != ''
+        env:
+          CPANEL_REPO_TOKEN: ${{ secrets.CPANEL_REPO_TOKEN }}
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.CPANEL_REPO_TOKEN }}
+          repository: Shadyelsawy536/cpanel
+          event-type: website-updated
+          client-payload: '{"source":"cafe-website","ref":"main"}'
