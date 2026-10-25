@@ -53,6 +53,12 @@ export type Product = {
 export type Modifier = { id: string; modifier_group_id: string; name: string; price: number; image_url: string | null; sort_order: number };
 export type ModifierGroup = { id: string; name: string; min_select: number; max_select: number; required: boolean };
 export type ProductModifierGroup = { product_id: string; modifier_group_id: string };
+export type BranchProductOverride = {
+  branch_id: string;
+  product_id: string;
+  price_override: number | null;
+  is_available: boolean | null;
+};
 export type Location = { id: string; name: string; address: string | null; map_url: string | null; latitude: number | null; longitude: number | null; is_primary: boolean };
 export type SocialLink = { platform: string; label: string | null; url: string; sort_order: number };
 export type BusinessHour = { day_of_week: number; is_closed: boolean; open_time: string | null; close_time: string | null };
