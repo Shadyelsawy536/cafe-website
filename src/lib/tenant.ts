@@ -7,7 +7,7 @@ import type { Restaurant } from '../types';
 // Until then no real hostname ever matches this, so every request falls
 // through to the ?restaurant=slug / path-segment behavior this app already
 // had -- local dev and the current GitHub Pages deployment are unaffected.
-const PLATFORM_ROOT_DOMAIN = 'codex.com';
+const PLATFORM_ROOT_DOMAIN = 'hubdine.com';
 
 // Subdomains that belong to the platform itself, never to a tenant.
 const RESERVED_SUBDOMAINS = new Set(['www', 'master', 'dashboard', 'api', 'admin', 'mail']);
