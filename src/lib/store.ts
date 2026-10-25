@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { Branding, BusinessHour, Category, Location, Modifier, ModifierGroup, Product, ProductModifierGroup, Restaurant, Settings, SocialLink, WebSettings } from '../types';
+import type { Branding, BranchProductOverride, BusinessHour, Category, Location, Modifier, ModifierGroup, Product, ProductModifierGroup, Restaurant, Settings, SocialLink, WebSettings } from '../types';
 
 export type StoreData = {
   restaurant: Restaurant;
@@ -11,12 +11,13 @@ export type StoreData = {
   modifierGroups: ModifierGroup[];
   modifiers: Modifier[];
   productModifierGroups: ProductModifierGroup[];
+  branchOverrides: BranchProductOverride[];
   locations: Location[];
   socialLinks: SocialLink[];
   businessHours: BusinessHour[];
 };
 
-const STORE_CACHE_VERSION = 1;
+const STORE_CACHE_VERSION = 2;
 const STORE_CACHE_FRESH_MS = 30_000;
 const STORE_CACHE_MAX_STALE_MS = 5 * 60_000;
 const STORE_CACHE_EVENT = 'cafe-store-cache-updated';
@@ -112,7 +113,7 @@ export function subscribeToStoreCacheUpdates(listener: (data: StoreData) => void
 
 async function fetchStoreFromSupabase(restaurant: Restaurant): Promise<StoreData> {
   const id = restaurant.id;
-  const [branding, webSettings, settings, categories, products, modifierGroups, modifiers, productModifierGroups, locations, socialLinks, businessHours] = await Promise.all([
+  const [branding, webSettings, settings, categories, products, modifierGroups, modifiers, productModifierGroups, locations, socialLinks, businessHours, branchOverrides] = await Promise.all([
     supabase.from('restaurant_branding').select('customer_primary_color,customer_secondary_color,customer_background_color,customer_logo_url,customer_cover_url,font_family').eq('restaurant_id', id).maybeSingle(),
     supabase.from('restaurant_web_settings').select('website_name,seo_title,seo_description,favicon_url,og_image_url,theme_color,pwa_enabled,pwa_short_name').eq('restaurant_id', id).maybeSingle(),
     supabase.from('restaurant_settings').select('currency,timezone,min_order_amount,tax_rate,accepts_delivery,accepts_pickup,preparation_time_minutes,accepts_scheduled_orders,scheduled_order_max_days,customer_notes_enabled,operational_status,closure_message').eq('restaurant_id', id).maybeSingle(),
@@ -127,9 +128,10 @@ async function fetchStoreFromSupabase(restaurant: Restaurant): Promise<StoreData
     supabase.from('restaurant_locations').select('id,name,address,map_url,latitude,longitude,is_primary').eq('restaurant_id', id).eq('is_active', true).order('sort_order'),
     supabase.from('restaurant_social_links').select('platform,label,url,sort_order').eq('restaurant_id', id).eq('is_active', true).order('sort_order'),
     supabase.from('restaurant_business_hours').select('day_of_week,is_closed,open_time,close_time').eq('restaurant_id', id).order('day_of_week'),
+    supabase.from('product_branch_overrides').select('branch_id,product_id,price_override,is_available').eq('restaurant_id', id),
   ]);
 
-  for (const result of [branding, webSettings, settings, categories, products, modifierGroups, modifiers, productModifierGroups, locations, socialLinks, businessHours]) {
+  for (const result of [branding, webSettings, settings, categories, products, modifierGroups, modifiers, productModifierGroups, locations, socialLinks, businessHours, branchOverrides]) {
     if (result.error) throw result.error;
   }
 
@@ -158,6 +160,7 @@ async function fetchStoreFromSupabase(restaurant: Restaurant): Promise<StoreData
     modifierGroups: (modifierGroups.data ?? []) as ModifierGroup[],
     modifiers: (modifiers.data ?? []) as Modifier[],
     productModifierGroups: (productModifierGroups.data ?? []) as ProductModifierGroup[],
+    branchOverrides: (branchOverrides.data ?? []) as BranchProductOverride[],
     locations: (locations.data ?? []) as Location[],
     socialLinks: (socialLinks.data ?? []) as SocialLink[],
     businessHours: (businessHours.data ?? []) as BusinessHour[],
