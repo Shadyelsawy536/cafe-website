@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { supabase } from './lib/supabase';
 import { getRestaurantSlug, loadRestaurant } from './lib/tenant';
-import { loadStore, subscribeToStoreCacheUpdates, type StoreData } from './lib/store';
+import { loadStore, refreshStore, subscribeToStoreCacheUpdates, type StoreData } from './lib/store';
 import { findDeliveryZone } from './lib/delivery';
 import { loadPaymentProviders } from './lib/payments';
 import { removeOrderRealtime, subscribeToCustomerOrders } from './lib/realtime';
@@ -27,6 +27,23 @@ export default function App() {
 
   useEffect(() => { let cancelled = false; setLoading(true); setError(null); (async () => { try { const slug = getRestaurantSlug(); if (!slug) throw new Error('No restaurant selected.'); const restaurant = await loadRestaurant(slug); const data = await loadStore(restaurant); if (!cancelled) { setStore(data); setSelectedBranchId(current => current && data.locations.some(l => l.id === current) ? current : data.locations.find(l => l.is_primary)?.id ?? data.locations[0]?.id ?? ''); } } catch (e) { if (!cancelled) setError(e instanceof Error ? e.message : 'Unable to load restaurant.'); } finally { if (!cancelled) setLoading(false); } })(); return () => { cancelled = true; }; }, [loadAttempt]);
   useEffect(() => subscribeToStoreCacheUpdates(fresh => { setStore(current => current?.restaurant.id === fresh.restaurant.id ? fresh : current); }), []);
+  useEffect(() => {
+    if (!store) return;
+    const channel = supabase
+      .channel(`branch-product-overrides-${store.restaurant.id}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'product_branch_overrides',
+        filter: `restaurant_id=eq.${store.restaurant.id}`,
+      }, () => {
+        void refreshStore(store.restaurant).catch(() => {
+          // The order RPC still enforces the latest branch availability and price.
+        });
+      })
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [store?.restaurant.id]);
   useEffect(() => {
     if (!store) return;
     let active = true;
@@ -58,7 +75,7 @@ export default function App() {
   useEffect(() => { if (!store) return; let active = true; const loadCustomer = async () => { const { data: { user } } = await supabase.auth.getUser(); if (!user || !active) return; const { data } = await supabase.from('customers').select('id,user_id,full_name,phone').eq('user_id', user.id).eq('restaurant_id', store.restaurant.id).maybeSingle(); if (active) setCustomer(data as Customer | null); }; void loadCustomer(); const { data } = supabase.auth.onAuthStateChange(() => { void loadCustomer(); }); return () => { active = false; data.subscription.unsubscribe(); }; }, [store]);
   useEffect(() => { if (!customer) return; const channel = subscribeToCustomerOrders(customer.id, event => { if (event.order_id === trackingOrderId && event.status) setNotice(`Order updated: ${statusLabel[event.status] ?? event.status}`); }); return () => { void removeOrderRealtime(channel); }; }, [customer, trackingOrderId]);
 
-  const branchProducts = useMemo(() => { if (!store) return []; return store.products.map(product => { const override = store.branchOverrides.find(row => row.branch_id === selectedBranchId && row.product_id === product.id); const status = override?.is_available == null ? product.status : override.is_available ? 'available' : 'out_of_stock'; return { ...product, base_price: override?.price_override == null ? product.base_price : Number(override.price_override), status }; }).filter(product => product.status === 'available'); }, [store, selectedBranchId]); const products = useMemo(() => { if (!store) return []; const q = query.trim().toLowerCase(); return branchProducts.filter(p => (activeCategory === 'all' || p.category_id === activeCategory) && (!q || `${p.name} ${p.description ?? ''}`.toLowerCase().includes(q))); }, [store, branchProducts, activeCategory, query]);
+  const branchProducts = useMemo(() => { if (!store) return []; return store.products.map(product => { const override = store.branchOverrides.find(row => row.branch_id === selectedBranchId && row.product_id === product.id); const status = product.status === 'hidden' ? 'hidden' : override?.is_available == null ? product.status : override.is_available ? 'available' : 'out_of_stock'; return { ...product, base_price: override?.price_override == null ? product.base_price : Number(override.price_override), status }; }).filter(product => product.status === 'available'); }, [store, selectedBranchId]); const products = useMemo(() => { if (!store) return []; const q = query.trim().toLowerCase(); return branchProducts.filter(p => (activeCategory === 'all' || p.category_id === activeCategory) && (!q || `${p.name} ${p.description ?? ''}`.toLowerCase().includes(q))); }, [store, branchProducts, activeCategory, query]);
   useEffect(() => { if (!store || !selectedBranchId) return; setCart(current => current.flatMap(item => { const freshProduct = branchProducts.find(product => product.id === item.product.id); return freshProduct ? [{ ...item, product: freshProduct }] : []; })); if (selected && !branchProducts.some(product => product.id === selected.id)) setSelected(null); }, [branchProducts, selectedBranchId, store]);
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0); const cartSubtotal = cart.reduce((sum, item) => sum + item.quantity * (Number(item.product.base_price) + item.modifierTotal), 0); const tax = store ? Math.round(cartSubtotal * Number(store.settings.tax_rate || 0) * 100) / 100 : 0;
   const groupsForProduct = (product: Product) => { if (!store) return []; const ids = store.productModifierGroups.filter(x => x.product_id === product.id).map(x => x.modifier_group_id); return store.modifierGroups.filter(g => ids.includes(g.id)); };
