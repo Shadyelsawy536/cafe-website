@@ -106,8 +106,8 @@ export default function App() {
         return;
       }
       const nearest = mapped.reduce((best, location) => distance(location.latitude!, location.longitude!) < distance(best.latitude!, best.longitude!) ? location : best);
-      chooseBranch(nearest.id);
-      setNotice(`Nearest branch selected: ${nearest.name}`);
+      setSelectedBranchId(nearest.id);
+      setBranchLocationMessage(`Closest branch suggested: ${nearest.name}. Select it below to continue, or choose another branch.`);
       setBranchLocationBusy(false);
     }, () => {
       setBranchLocationMessage('Location permission is off. You can still choose any branch below.');
