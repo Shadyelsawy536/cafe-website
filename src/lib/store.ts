@@ -101,6 +101,13 @@ export async function loadStore(restaurant: Restaurant): Promise<StoreData> {
   return fresh;
 }
 
+export async function refreshStore(restaurant: Restaurant): Promise<StoreData> {
+  const fresh = await fetchStoreFromSupabase(restaurant);
+  writeStoreCache(fresh);
+  publishStoreUpdate(fresh);
+  return fresh;
+}
+
 export function subscribeToStoreCacheUpdates(listener: (data: StoreData) => void): () => void {
   if (typeof window === 'undefined') return () => undefined;
   const handler = (event: Event) => {
