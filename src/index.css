@@ -219,3 +219,61 @@
     touch-action: manipulation;
   }
 }
+
+
+/* Keep the mobile product quantity stepper inside the full-width Add action. */
+@media (max-width: 620px) {
+  .product-grid:not(.product-list) .product-footer .product-qty,
+  .product-grid.product-list .product-footer .product-qty {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr) 42px;
+    align-items: center;
+    justify-items: stretch;
+    gap: 0;
+    width: 100%;
+    min-width: 0;
+    min-height: 42px;
+    padding: 3px;
+    border: 1px solid color-mix(in srgb, var(--primary) 28%, #e8e6e1);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--primary) 5%, #fff);
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+
+  .product-grid .product-footer .product-qty button {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    min-width: 36px;
+    max-width: 36px;
+    height: 34px;
+    min-height: 34px;
+    margin: 0 auto;
+    padding: 0;
+    border: 0;
+    border-radius: 9px;
+    background: var(--primary);
+    color: #fff;
+    font-size: 21px;
+    line-height: 1;
+    font-weight: 700;
+    box-shadow: none;
+  }
+
+  .product-grid .product-footer .product-qty button:disabled {
+    opacity: .4;
+    cursor: not-allowed;
+  }
+
+  .product-grid .product-footer .product-qty b {
+    display: block;
+    min-width: 0;
+    text-align: center;
+    color: #171717;
+    font-size: 15px;
+    line-height: 1;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+}
