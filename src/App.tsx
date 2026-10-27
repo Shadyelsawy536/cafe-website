@@ -132,7 +132,8 @@ export default function App() {
       return;
     }
     setCart(current => {
-      const index = current.findLastIndex(item => item.product.id === product.id);
+      let index = -1;
+      current.forEach((item, itemIndex) => { if (item.product.id === product.id) index = itemIndex; });
       if (index < 0) return current;
       return current.map((item, itemIndex) => itemIndex === index ? { ...item, quantity: Math.max(0, item.quantity - 1) } : item).filter(item => item.quantity > 0);
     });
