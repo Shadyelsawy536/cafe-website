@@ -162,3 +162,44 @@
   .product-grid:not(.product-list) .product-footer button{width:100%;min-height:42px;padding:10px 8px;border:1px solid color-mix(in srgb,var(--primary) 75%,#777);border-radius:12px;background:var(--primary);color:#fff;font-size:12px;line-height:1.2;box-shadow:none}
   .product-grid:not(.product-list) .product-unavailable .product-footer button{background:#e8e7e4;color:#777;border-color:#e8e7e4}
 }
+
+
+/* Fix touch scrolling in the product customization modal on mobile browsers. */
+@media (max-width: 620px) {
+  .modal-backdrop:has(.product-modal) {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
+
+  .product-modal {
+    display: block;
+    flex: 0 0 auto;
+    width: 100%;
+    max-height: calc(100dvh - 24px);
+    max-height: calc(100vh - 24px);
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    margin: 0;
+  }
+
+  .product-modal .modal-content {
+    min-height: 0;
+    overflow: visible;
+    touch-action: pan-y;
+    padding-bottom: max(24px, env(safe-area-inset-bottom));
+  }
+
+  .product-modal .modifier-group,
+  .product-modal .modifier-option {
+    touch-action: pan-y;
+  }
+}
